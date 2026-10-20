@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Focus Arena | 賽博龐克專注時鐘</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-color: #090a10;
+      --card-bg: rgba(18, 20, 32, 0.75);
+      --card-border: rgba(0, 240, 255, 0.25);
+      --neon-cyan: #00f0ff;
+      --neon-pink: #ff007f;
+      --neon-yellow: #ffe600;
+      --text-main: #f0f4fc;
+      --text-muted: #7c88a8;
+      --font-display: 'Orbitron', monospace;
+      --font-sans: 'Noto Sans TC', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+
+    /* 背景 Canvas */
+    #bg-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* 主容器 */
+    .container {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 900px;
+      padding: 2.5rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    /* 頂部標題 */
+    header {
+      text-align: center;
+    }
+
+    .title {
+      font-family: var(--font-display);
+      font-size: 2.5rem;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--neon-cyan);
+      text-shadow: 0 0 10px rgba(0, 240, 255, 0.6), 0 0 25px rgba(0, 240, 255, 0.2);
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-top: 0.5rem;
+      letter-spacing: 1px;
+    }
+
+    /* 主計時區塊 */
+    .timer-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 2.5rem 2rem;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 0 15px rgba(0, 240, 255, 0.05);
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .mode-pills {
+      display: flex;
+      gap: 0.75rem;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 0.4rem;
+      border-radius: 50px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      margin-bottom: 2rem;
+    }
+
+    .mode-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      font-family: var(--font-display);
+      padding: 0.6rem 1.4rem;
+      border-radius: 40px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+
+    .mode-btn.active {
+      background: var(--neon-cyan);
+      color: #000;
+      font-weight: 700;
+      box-shadow: 0 0 15px rgba(0, 240, 255, 0.6);
+    }
+
+    .countdown-display {
+      font-family: var(--font-display);
+      font-size: 5.5rem;
+      font-weight: 900;
+      letter-spacing: 6px;
+      line-height: 1;
+      margin: 1rem 0 2rem;
+      text-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+      user-select: none;
+    }
+
+    .controls {
+      display: flex;
+      gap: 1.25rem;
+      align-items: center;
+    }
+
+    .btn {
+      font-family: var(--font-display);
+      font-size: 1rem;
+      padding: 0.8rem 2rem;
+      border-radius: 12px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background: var(--neon-pink);
+      color: white;
+      font-weight: 700;
+      box-shadow: 0 0 20px rgba(255, 0, 127, 0.4);
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 0 30px rgba(255, 0, 127, 0.7);
+      transform: translateY(-2px);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-main);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: var(--neon-cyan);
+    }
+
+    /* 下方功能網格 */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 768px) {
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+      .countdown-display {
+        font-size: 4rem;
+      }
+    }
+
+    .panel {
+      background: var(--card-bg);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 1.5rem;
+      backdrop-filter: blur(12px);
+    }
+
+    .panel-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--neon-yellow);
+      font-family: var(--font-display);
+      letter-spacing: 1px;
+    }
+
+    /* 白噪音混音滑桿 */
+    .sound-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+      gap: 1rem;
+    }
+
+    .sound-item label {
+      font-size: 0.9rem;
+      min-width: 90px;
+    }
+
+    .slider {
+      flex: 1;
+      -webkit-appearance: none;
+      height: 6px;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.15);
+      outline: none;
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--neon-cyan);
+      box-shadow: 0 0 10px var(--neon-cyan);
+      cursor: pointer;
+    }
+
+    /* 戰績展示 */
+    .stats-row {
+      display: flex;
+      justify-content: space-around;
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .stat-val {
+      font-family: var(--font-display);
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--neon-cyan);
+    }
+
+    .stat-label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+
+    .share-btn {
+      width: 100%;
+      background: rgba(0, 240, 255, 0.1);
+      color: var(--neon-cyan);
+      border: 1px solid var(--neon-cyan);
+      border-radius: 10px;
+      padding: 0.6rem;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .share-btn:hover {
+      background: var(--neon-cyan);
+      color: #000;
+      box-shadow: 0 0 15px rgba(0, 240, 255, 0.5);
+    }
+  </style>
+</head>
+<body>
+  <canvas id="bg-canvas"></canvas>
+
+  <div class="container">
+    <header>
+      <h1 class="title">Focus Arena</h1>
+      <p class="subtitle">賽博專注矩陣 // 進入深度心流狀態</p>
+    </header>
+
+    <main class="timer-card">
+      <div class="mode-pills">
+        <button class="mode-btn active" data-time="1500" data-mode="focus">專注 (25m)</button>
+        <button class="mode-btn" data-time="300" data-mode="shortBreak">短休 (5m)</button>
+        <button class="mode-btn" data-time="900" data-mode="longBreak">長休 (15m)</button>
+      </div>
+
+      <div class="countdown-display" id="time-display">25:00</div>
+
+      <div class="controls">
+        <button class="btn btn-primary" id="start-btn">開始專注</button>
+        <button class="btn btn-secondary" id="reset-btn">重置</button>
+      </div>
+    </main>
+
+    <div class="dashboard-grid">
+      <!-- 原生合成白噪音 -->
+      <section class="panel">
+        <div class="panel-title">
+          <span>🎧 矩陣氛圍音 (Audio Synthesizer)</span>
+        </div>
+        <div class="sound-item">
+          <label>數位雨林</label>
+          <input type="range" min="0" max="100" value="0" class="slider" id="rain-slider">
+        </div>
+        <div class="sound-item">
+          <label>篝火粒子</label>
+          <input type="range" min="0" max="100" value="0" class="slider" id="fire-slider">
+        </div>
+        <div class="sound-item">
+          <label>星際低鳴</label>
+          <input type="range" min="0" max="100" value="0" class="slider" id="drone-slider">
+        </div>
+      </section>
+
+      <!-- 今日戰績統計 -->
+      <section class="panel">
+        <div class="panel-title">
+          <span>⚡ 今日心流紀錄</span>
+        </div>
+        <div class="stats-row">
+          <div>
+            <div class="stat-val" id="pomos-today">0</div>
+            <div class="stat-label">完成番茄數</div>
+          </div>
+          <div>
+            <div class="stat-val" id="minutes-today">0</div>
+            <div class="stat-label">專注總分鐘</div>
+          </div>
+        </div>
+        <button class="share-btn" id="copy-stats-btn">📋 複製今日戰報</button>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    // --- 1. 背景 Canvas 賽博粒子特效 ---
+    const canvas = document.getElementById('bg-canvas');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    class Particle {
+      constructor() {
+        this.reset();
+      }
+      reset() {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.size = Math.random() * 2 + 0.5;
+        this.speedY = -(Math.random() * 0.6 + 0.2);
+        this.alpha = Math.random() * 0.5 + 0.2;
+        this.color = Math.random() > 0.5 ? '#00f0ff' : '#ff007f';
+      }
+      update() {
+        this.y += this.speedY;
+        if (this.y < 0) this.reset();
+      }
+      draw() {
+        ctx.fillStyle = this.color;
+        ctx.globalAlpha = this.alpha;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    for (let i = 0; i < 60; i++) particles.push(new Particle());
+
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach(p => {
+        p.update();
+        p.draw();
+      });
+      requestAnimationFrame(animate);
+    }
+    animate();
+
+    // --- 2. 番茄鐘計時邏輯 ---
+    let totalSeconds = 1500;
+    let currentSeconds = 1500;
+    let timerId = null;
+    let isRunning = false;
+    let currentMode = 'focus';
+
+    const timeDisplay = document.getElementById('time-display');
+    const startBtn = document.getElementById('start-btn');
+    const resetBtn = document.getElementById('reset-btn');
+    const modeBtns = document.querySelectorAll('.mode-btn');
+
+    function updateDisplay() {
+      const mins = Math.floor(currentSeconds / 60);
+      const secs = currentSeconds % 60;
+      const formatted = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+      timeDisplay.textContent = formatted;
+      document.title = `${formatted} | Focus Arena`;
+    }
+
+    function toggleTimer() {
+      initAudio(); // 確保 Web Audio 取得瀏覽器許可
+      if (isRunning) {
+        clearInterval(timerId);
+        startBtn.textContent = '繼續專注';
+        isRunning = false;
+      } else {
+        isRunning = true;
+        startBtn.textContent = '暫停';
+        timerId = setInterval(() => {
+          if (currentSeconds > 0) {
+            currentSeconds--;
+            updateDisplay();
+          } else {
+            clearInterval(timerId);
+            isRunning = false;
+            startBtn.textContent = '開始專注';
+            playNotificationSound();
+            if (currentMode === 'focus') {
+              recordSession(Math.round(totalSeconds / 60));
+            }
+            alert(currentMode === 'focus' ? '🎯 專注完成！請好好休息一下！' : '⚡ 休息結束，準備好進入下一階段了嗎？');
+            resetTimer();
+          }
+        }, 1000);
+      }
+    }
+
+    function resetTimer() {
+      clearInterval(timerId);
+      isRunning = false;
+      currentSeconds = totalSeconds;
+      startBtn.textContent = '開始專注';
+      updateDisplay();
+    }
+
+    startBtn.addEventListener('click', toggleTimer);
+    resetBtn.addEventListener('click', resetTimer);
+
+    modeBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        modeBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        totalSeconds = parseInt(btn.dataset.time);
+        currentMode = btn.dataset.mode;
+        resetTimer();
+      });
+    });
+
+    // --- 3. 原生 Web Audio API 白噪音與提示音合成 ---
+    let audioCtx = null;
+    let rainGain = null, fireGain = null, droneGain = null;
+
+    function initAudio() {
+      if (audioCtx) return;
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+      // 雨聲合成（粉紅噪音 + 低通濾波器）
+      const bufferSize = audioCtx.sampleRate * 2;
+      const rainBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+      const output = rainBuffer.getChannelData(0);
+      let b0 = 0, b1 = 0, b2 = 0;
+      for (let i = 0; i < bufferSize; i++) {
+        const white = Math.random() * 2 - 1;
+        b0 = 0.99886 * b0 + white * 0.0555179;
+        b1 = 0.99332 * b1 + white * 0.0750759;
+        b2 = 0.96900 * b2 + white * 0.1538520;
+        output[i] = (b0 + b1 + b2) * 0.15;
+      }
+      const rainSource = audioCtx.createBufferSource();
+      rainSource.buffer = rainBuffer;
+      rainSource.loop = true;
+      const rainFilter = audioCtx.createBiquadFilter();
+      rainFilter.type = 'lowpass';
+      rainFilter.frequency.value = 1000;
+      rainGain = audioCtx.createGain();
+      rainGain.gain.value = 0;
+      rainSource.connect(rainFilter).connect(rainGain).connect(audioCtx.destination);
+      rainSource.start();
+
+      // 太空低鳴（Drone：正弦波疊加）
+      const osc1 = audioCtx.createOscillator();
+      const osc2 = audioCtx.createOscillator();
+      droneGain = audioCtx.createGain();
+      droneGain.gain.value = 0;
+      osc1.type = 'sine';
+      osc1.frequency.value = 110;
+      osc2.type = 'sawtooth';
+      osc2.frequency.value = 112;
+      const droneFilter = audioCtx.createBiquadFilter();
+      droneFilter.frequency.value = 300;
+      osc1.connect(droneFilter);
+      osc2.connect(droneFilter);
+      droneFilter.connect(droneGain).connect(audioCtx.destination);
+      osc1.start();
+      osc2.start();
+    }
+
+    // 滑桿事件監聽
+    document.getElementById('rain-slider').addEventListener('input', (e) => {
+      initAudio();
+      if (rainGain) rainGain.gain.value = e.target.value / 100;
+    });
+
+    document.getElementById('drone-slider').addEventListener('input', (e) => {
+      initAudio();
+      if (droneGain) droneGain.gain.value = (e.target.value / 100) * 0.3;
+    });
+
+    // 提示音效（Synthesized Chime）
+    function playNotificationSound() {
+      if (!audioCtx) audioCtx = new AudioContext();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+      osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.3); // A5
+      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.2);
+      osc.connect(gain).connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 1.2);
+    }
+
+    // --- 4. 戰績統計與 LocalStorage ---
+    const STATS_KEY = 'focus_arena_stats_' + new Date().toISOString().slice(0, 10);
+
+    function getTodayStats() {
+      const data = localStorage.getItem(STATS_KEY);
+      return data ? JSON.parse(data) : { pomos: 0, minutes: 0 };
+    }
+
+    function recordSession(minutes) {
+      const stats = getTodayStats();
+      stats.pomos += 1;
+      stats.minutes += minutes;
+      localStorage.setItem(STATS_KEY, JSON.stringify(stats));
+      renderStats();
+    }
+
+    function renderStats() {
+      const stats = getTodayStats();
+      document.getElementById('pomos-today').textContent = stats.pomos;
+      document.getElementById('minutes-today').textContent = stats.minutes;
+    }
+
+    document.getElementById('copy-stats-btn').addEventListener('click', () => {
+      const stats = getTodayStats();
+      const text = `⚡ 今日在 Focus Arena 達成的心流戰績：\n🍅 完成番茄鐘：${stats.pomos} 顆\n⏱️ 專注總時數：${stats.minutes} 分鐘！`;
+      navigator.clipboard.writeText(text).then(() => {
+        alert('戰報已複製至剪貼簿！');
+      });
+    });
+
+    renderStats();
+    updateDisplay();
+  </script>
+</body>
+</html>
